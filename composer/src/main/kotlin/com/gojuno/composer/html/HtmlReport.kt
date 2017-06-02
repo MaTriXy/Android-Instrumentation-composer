@@ -16,7 +16,7 @@ fun writeHtmlReport(gson: Gson, suites: List<Suite>, outputDir: File): Completab
 
     val htmlIndexJson = gson.toJson(
             HtmlIndex(
-                    suites = suites.mapIndexed { index, suite -> suite.toHtmlShortSuite(id = "$index") }
+                    suites = suites.mapIndexed { index, suite -> suite.toHtmlShortSuite(id = "$index", htmlReportDir = outputDir) }
             )
     )
 
@@ -25,10 +25,14 @@ fun writeHtmlReport(gson: Gson, suites: List<Suite>, outputDir: File): Completab
     val suitesDir = File(outputDir, "suites").apply { mkdirs() }
 
     suites.mapIndexed { suiteId, suite ->
-        File(suitesDir, "$suiteId.json").writeText(gson.toJson(suite.toHtmlFullSuite(id = "$suiteId")))
+        File(suitesDir, "$suiteId.json").writeText(gson.toJson(suite.toHtmlFullSuite(id = "$suiteId", htmlReportDir = suitesDir)))
 
-        suite.tests.map { it.toHtmlFullTest() }.forEach { htmlFullTest ->
-            File(File(File(suitesDir, "$suiteId"), htmlFullTest.deviceId).apply { mkdirs() }, "${htmlFullTest.id}.json").writeText(gson.toJson(htmlFullTest))
-        }
+        suite
+                .tests
+                .map { it to File(File(suitesDir, "$suiteId"), it.adbDevice.id).apply { mkdirs() } }
+                .map { (test, testDir) -> test.toHtmlFullTest(htmlReportDir = testDir) to testDir }
+                .forEach { (htmlFullTest, testDir) -> File(testDir, "${htmlFullTest.id}.json").writeText(gson.toJson(htmlFullTest)) }
     }
 }
+
+fun File.relativePathTo(base: File): String = toRelativeString(base.absoluteFile)

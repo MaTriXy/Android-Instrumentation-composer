@@ -24,7 +24,7 @@ class HtmlFullTestSpec : Spek({
                 screenshots = listOf(testFile(), testFile())
         )
 
-        val htmlTest = adbDeviceTest.toHtmlFullTest()
+        val htmlTest = adbDeviceTest.toHtmlFullTest(htmlReportDir = testFile().parentFile)
 
         it("converts AdbDeviceTest to HtmlFullTest") {
             assertThat(htmlTest).isEqualTo(HtmlFullTest(

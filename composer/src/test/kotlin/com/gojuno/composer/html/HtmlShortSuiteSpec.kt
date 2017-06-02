@@ -49,7 +49,7 @@ class HtmlShortSuiteSpec : Spek({
                 timestampMillis = 123
         )
 
-        val htmlShortSuite = suite.toHtmlShortSuite(id = "testSuite")
+        val htmlShortSuite = suite.toHtmlShortSuite(id = "testSuite", htmlReportDir = testFile().parentFile)
 
         it("converts Suite to HtmlShortSuite") {
             assertThat(htmlShortSuite).isEqualTo(HtmlShortSuite(
@@ -58,7 +58,7 @@ class HtmlShortSuiteSpec : Spek({
                     ignoredCount = suite.ignoredCount,
                     failedCount = suite.failedCount,
                     durationMillis = NANOSECONDS.toMillis(suite.durationNanos),
-                    devices = suite.devices.map { it.toHtmlDevice() }
+                    devices = suite.devices.map { it.toHtmlDevice(htmlReportDir = testFile().parentFile) }
             ))
         }
     }

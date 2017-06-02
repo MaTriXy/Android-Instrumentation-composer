@@ -7,6 +7,7 @@ import com.gojuno.composer.Suite
 import com.gojuno.composer.perform
 import com.google.gson.Gson
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.util.Files
 import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.context
 import org.jetbrains.spek.api.dsl.it
@@ -58,7 +59,7 @@ class HtmlReportSpec : Spek({
                 )
         )
 
-        val outputDir by memoized { File("${System.nanoTime()}") }
+        val outputDir by memoized { Files.newTemporaryFolder() }
 
         val subscriber = TestSubscriber<Unit>()
 
