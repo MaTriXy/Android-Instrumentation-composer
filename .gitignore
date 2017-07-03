@@ -11,3 +11,9 @@ gradle/local.properties
 
 # Share code style.
 !.idea/codeStyleSettings.xml
+
+# Html viewer rules
+node_modules/
+npm-debug.log*
+test/
+composer/src/main/resources/html-report/

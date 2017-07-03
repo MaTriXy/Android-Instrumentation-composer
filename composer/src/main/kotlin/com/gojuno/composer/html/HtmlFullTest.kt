@@ -2,9 +2,13 @@ package com.gojuno.composer.html
 
 import com.gojuno.composer.AdbDeviceTest
 import com.google.gson.annotations.SerializedName
+import java.io.File
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
 data class HtmlFullTest(
+
+        @SerializedName("suite_id")
+        val suiteId: String,
 
         @SerializedName("package_name")
         val packageName: String,
@@ -23,7 +27,7 @@ data class HtmlFullTest(
 
         @SerializedName("status")
         val status: Status,
-        
+
         @SerializedName("stacktrace")
         val stacktrace: String?,
 
@@ -39,8 +43,8 @@ data class HtmlFullTest(
         @SerializedName("file_paths")
         val filePaths: List<String>,
 
-        @SerializedName("screenshots_paths")
-        val screenshotsPaths: List<String>
+        @SerializedName("screenshots")
+        val screenshots: List<Screenshot>
 ) {
     enum class Status {
 
@@ -53,9 +57,19 @@ data class HtmlFullTest(
         @SerializedName("ignored")
         Ignored
     }
+
+    data class Screenshot(
+
+            @SerializedName("path")
+            val path: String,
+
+            @SerializedName("title")
+            val title: String
+    )
 }
 
-fun AdbDeviceTest.toHtmlFullTest() = HtmlFullTest(
+fun AdbDeviceTest.toHtmlFullTest(suiteId: String, htmlReportDir: File) = HtmlFullTest(
+        suiteId = suiteId,
         packageName = className.substringBeforeLast("."),
         className = className.substringAfterLast("."),
         name = testName,
@@ -69,9 +83,14 @@ fun AdbDeviceTest.toHtmlFullTest() = HtmlFullTest(
             is AdbDeviceTest.Status.Failed -> status.stacktrace
             else -> null
         },
-        logcatPath = logcat.path,
+        logcatPath = logcat.relativePathTo(htmlReportDir),
         deviceId = adbDevice.id,
         properties = emptyMap(), // TODO: add properties support.
-        filePaths = files.map { it.path },
-        screenshotsPaths = screenshots.map { it.path }
+        filePaths = files.map { it.relativePathTo(htmlReportDir) },
+        screenshots = screenshots.map {
+            HtmlFullTest.Screenshot(
+                    path = it.relativePathTo(htmlReportDir),
+                    title = it.nameWithoutExtension
+            )
+        }
 )
