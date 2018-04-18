@@ -37,6 +37,9 @@ data class HtmlFullTest(
         @SerializedName("deviceId")
         val deviceId: String,
 
+        @SerializedName("deviceModel")
+        val deviceModel: String,
+
         @SerializedName("properties")
         val properties: Map<String, Any>,
 
@@ -76,15 +79,17 @@ fun AdbDeviceTest.toHtmlFullTest(suiteId: String, htmlReportDir: File) = HtmlFul
         durationMillis = NANOSECONDS.toMillis(durationNanos),
         status = when (status) {
             AdbDeviceTest.Status.Passed -> HtmlFullTest.Status.Passed
-            AdbDeviceTest.Status.Ignored -> HtmlFullTest.Status.Ignored
+            is AdbDeviceTest.Status.Ignored -> HtmlFullTest.Status.Ignored
             is AdbDeviceTest.Status.Failed -> HtmlFullTest.Status.Failed
         },
         stacktrace = when (status) {
-            is AdbDeviceTest.Status.Failed -> status.stacktrace
+            is AdbDeviceTest.Status.Ignored -> status.stacktrace
+            is AdbDeviceTest.Status.Failed  -> status.stacktrace
             else -> null
         },
         logcatPath = logcat.relativePathTo(htmlReportDir),
         deviceId = adbDevice.id,
+        deviceModel = adbDevice.model,
         properties = emptyMap(), // TODO: add properties support.
         filePaths = files.map { it.relativePathTo(htmlReportDir) },
         screenshots = screenshots.map {

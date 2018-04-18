@@ -9,6 +9,17 @@ Composer is a modern reactive replacement for [square/spoon][spoon] with followi
 
 ![Demo](demo/composer.gif)
 
+### Table of Contents
+
+- [Why we've decided to replace square/spoon](#why-weve-decided-to-replace-squarespoon)
+- [HTML Report](#html-report)
+- [Usage](#usage)
+- [Download](#download)
+- [3rd-party Composer Gradle Plugin](#3rd-party-composer-gradle-plugin)
+- [Swarmer](#swarmer)
+- [How to build](#how-to-build)
+- [License](#license)
+
 ### Why we've decided to replace [square/spoon][spoon]
  
 **Problem 1:** Our UI tests are stable, but we saw a lot of UI tests build failures. About ~50% of our CI builds were failing. All such failures of UI tests came from Spoon not being able to run tests on one or more emulators (device is red in the report and error message is `…work/emulator-5554/result.json (No such file or directory)`, basically it timed out on installing the apk on a device, increasing adb timeout did not help, all emulators responded to adb commands and mouse/keyboard interactions, we suppose problem is in in ddmlib used by Spoon.
@@ -46,7 +57,7 @@ Here are few screenshots:
 
 ## Usage
 
-Composer shipped as jar, to run it you need JVM 1.8+: java -jar composer-latest-version.jar options. 
+Composer shipped as jar, to run it you need JVM 1.8+: `java -jar composer-latest-version.jar options`. 
 
 #### Supported options
 
@@ -56,13 +67,11 @@ Composer shipped as jar, to run it you need JVM 1.8+: java -jar composer-latest-
   * Path to application apk that needs to be tested.
 * `--test-apk`
   * Path to apk with tests.
-* `--test-package`
-  * Android package name of the test apk (Could be parsed from `--test-apk`, PR welcome).
-* `--test-runner`
-  * Full qualified name of test runner class you're using (Could be parsed from `--test-apk`, PR welcome).
 
 ##### Optional
 
+* `--test-runner`
+  * Fully qualified name of test runner class you're using. Parsed from `--test-apk`, if not specified manually.
 * `--help, -help, help, -h`
   * Print help and exit.
 * `--shard`
@@ -72,19 +81,36 @@ Composer shipped as jar, to run it you need JVM 1.8+: java -jar composer-latest-
 * `--instrumentation-arguments`
   * Key-value pairs to pass to Instrumentation Runner. Usage example: `--instrumentation-arguments myKey1 myValue1 myKey2 myValue2`.
 * `--verbose-output`
-  * Either `true` or `false` to enable/disable verbose output for Swarmer. `false` by default.
+  * Either `true` or `false` to enable/disable verbose output for Composer. `false` by default.
+* `--keep-output-on-exit`
+  * Either `true` or `false` to keep/clean output on exit. `false` by default.".
+* `--devices`
+  * Connected devices/emulators that will be used to run tests against. If not passed — tests will run on all connected devices/emulators. Specifying both `--devices` and `--device-pattern` will result in an error. Usage example: `--devices emulator-5554 emulator-5556`.
+* `--device-pattern`
+  * Connected devices/emulators that will be used to run tests against. If not passed — tests will run on all connected devices/emulators. Specifying both `--device-pattern` and `--devices` will result in an error. Usage example: `--device-pattern "emulator.+"`.
+* `--install-timeout`
+  * APK installation timeout in seconds. If not passed defaults to 120 seconds (2 minutes). Applicable to both test APK and APK under test. Usage
+  example (for 10 minutes timeout): `--install-timeout 600`.
 
 ##### Example
 
+Simplest :
+```console
+java -jar composer-latest-version.jar \
+--apk app/build/outputs/apk/example-debug.apk \
+--test-apk app/build/outputs/apk/example-debug-androidTest.apk
+```
+
+With arguments :
 ```console
 java -jar composer-latest-version.jar \
 --apk app/build/outputs/apk/example-debug.apk \
 --test-apk app/build/outputs/apk/example-debug-androidTest.apk \
---test-package com.example.test \
 --test-runner com.example.test.ExampleTestRunner \
 --output-directory artifacts/composer-output \
 --instrumentation-arguments key1 value1 key2 value2 \
---verbose-output false
+--verbose-output false \
+--keep-output-on-exit false
 ```
 
 ### Download
@@ -99,6 +125,16 @@ curl --fail --location https://jcenter.bintray.com/com/gojuno/composer/composer/
 ```
 
 All the releases and changelogs can be found on [Releases Page](https://github.com/gojuno/composer/releases).
+
+### 3rd-party Composer Gradle Plugin
+
+[@trevjonez](https://github.com/trevjonez) [built](https://github.com/gojuno/composer/issues/77) 🎉 [Gradle Plugin for Composer](https://github.com/trevjonez/composer-gradle-plugin) which allows you to configure and run Composer with Gradle.
+
+### Swarmer
+
+Composer works great in combination with [Swarmer][swarmer] — another tool we've built at Juno. 
+
+[Swarmer][swarmer] can create and start multiple emulators in parallel. In our [CI Pipeline][ci pipeline] we start emulators with Swarmer and then Composer runs tests on them.
 
 ### How to build
 
@@ -127,4 +163,6 @@ limitations under the License.
 ```
 
 [spoon]: https://github.com/square/spoon
-[test sharding]: https://developer.android.com/topic/libraries/testing-support-library/index.html#ajur-sharding
+[test sharding]: https://developer.android.com/training/testing/junit-runner.html#sharding-tests
+[swarmer]: https://github.com/gojuno/swarmer
+[ci pipeline]: https://github.com/gojuno/engineering/tree/master/articles/ci_pipeline_and_custom_tools_of_android_projects

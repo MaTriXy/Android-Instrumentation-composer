@@ -18,9 +18,9 @@ export default class TestItem extends Component {
     return (
       <div className="content margin-top-20">
         <div className="title-common vertical-aligned-content">
-          <a href={ paths.fromTestToIndex }>Suits list</a> /
+          <a href={ paths.fromTestToIndex }>Suites list</a> /
           <a href={ paths.fromTestToSuite(data.suite_id) }>Suite { data.suite_id }</a> /
-          { data.deviceId }
+          { data.deviceModel } ({ data.deviceId })
         </div>
         <div className='margin-top-20'>
           <div className={ `card row full justify-between test-page ${data.status}` }>

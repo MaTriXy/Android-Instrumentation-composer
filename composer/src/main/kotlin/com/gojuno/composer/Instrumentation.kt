@@ -1,10 +1,14 @@
 package com.gojuno.composer
 
-import com.gojuno.composer.InstrumentationTest.Status.*
+import com.gojuno.composer.InstrumentationTest.Status.Failed
+import com.gojuno.composer.InstrumentationTest.Status.Ignored
+import com.gojuno.composer.InstrumentationTest.Status.Passed
 import rx.Observable
 import java.io.File
 
 data class InstrumentationTest(
+        val index: Int,
+        val total: Int,
         val className: String,
         val testName: String,
         val status: Status,
@@ -13,7 +17,7 @@ data class InstrumentationTest(
 
     sealed class Status {
         object Passed : Status()
-        object Ignored : Status()
+        data class Ignored(val stacktrace: String = "") : Status()
         data class Failed(val stacktrace: String) : Status()
     }
 }
@@ -54,8 +58,27 @@ private fun String.substringBetween(first: String, second: String): String {
     return substring(startIndex, endIndex)
 }
 
-private fun String.parseInstrumentationStatusValue(key: String): String = substringBetween("INSTRUMENTATION_STATUS: $key=", "INSTRUMENTATION_STATUS")
+private fun String.parseInstrumentationStatusValue(key: String): String = this
+        .substringBetween("INSTRUMENTATION_STATUS: $key=", "INSTRUMENTATION_STATUS")
         .trim()
+
+private fun String.throwIfError(output: File) = when {
+    contains("INSTRUMENTATION_RESULT: shortMsg=") -> {
+        throw Exception("Application process crashed. Check Logcat output for more details.")
+    }
+
+    contains("INSTRUMENTATION_STATUS: Error=Unable to find instrumentation info for") -> {
+        val runner = substringBetween("ComponentInfo{", "}").substringAfter("/")
+        throw Exception(
+                "Instrumentation was unable to run tests using runner $runner.\n" +
+                "Most likely you forgot to declare test runner in AndroidManifest.xml or build.gradle.\n" +
+                "Detailed log can be found in ${output.path} or Logcat output.\n" +
+                "See https://github.com/gojuno/composer/issues/79 for more info."
+        )
+    }
+
+    else -> this
+}
 
 private fun parseInstrumentationEntry(str: String): InstrumentationEntry =
         InstrumentationEntry(
@@ -83,42 +106,43 @@ private fun parseInstrumentationEntry(str: String): InstrumentationEntry =
 
 // Reads stream in "tail -f" mode.
 fun readInstrumentationOutput(output: File): Observable<InstrumentationEntry> {
-    data class result(val buffer: String = "", val readyForProcessing: Boolean = false)
+    data class Result(val buffer: String = "", val readyForProcessing: Boolean = false)
 
     return tail(output)
-            .map { it.trim() }
-            // `INSTRUMENTATION_CODE: -1` is last line printed by instrumentation, even if 0 tests were run.
-            .takeWhile { !it.startsWith("INSTRUMENTATION_CODE") }
-            .scan(result()) { previousResult, newLine ->
+            .map(String::trim)
+            .map { it.throwIfError(output) }
+            .takeWhile {
+                // `INSTRUMENTATION_CODE: <code>` is the last line printed by instrumentation, even if 0 tests were run.
+                !it.startsWith("INSTRUMENTATION_CODE")
+            }
+            .scan(Result()) { previousResult, newLine ->
                 val buffer = when (previousResult.readyForProcessing) {
                     true -> newLine
                     false -> "${previousResult.buffer}${System.lineSeparator()}$newLine"
                 }
 
-                result(buffer = buffer, readyForProcessing = newLine.startsWith("INSTRUMENTATION_STATUS_CODE"))
+                Result(buffer = buffer, readyForProcessing = newLine.startsWith("INSTRUMENTATION_STATUS_CODE"))
             }
             .filter { it.readyForProcessing }
-            .map { parseInstrumentationEntry(it.buffer) }
+            .map { it.buffer }
+            .map(::parseInstrumentationEntry)
 }
 
 fun Observable<InstrumentationEntry>.asTests(): Observable<InstrumentationTest> {
-    data class result(val entries: List<InstrumentationEntry> = emptyList(), val tests: List<InstrumentationTest> = emptyList(), val totalTestsCount: Int = 0)
+    data class Result(val entries: List<InstrumentationEntry> = emptyList(), val tests: List<InstrumentationTest> = emptyList(), val totalTestsCount: Int = 0)
 
     return this
-            .scan(result()) { previousResult, newEntry ->
+            .scan(Result()) { previousResult, newEntry ->
                 val entries = previousResult.entries + newEntry
                 val tests: List<InstrumentationTest> = entries
                         .mapIndexed { index, first ->
                             val second = entries
                                     .subList(index + 1, entries.size)
                                     .firstOrNull {
-                                        first.clazz == it.clazz
-                                                &&
-                                                first.test == it.test
-                                                &&
-                                                first.current == it.current
-                                                &&
-                                                first.statusCode != it.statusCode
+                                        first.clazz == it.clazz &&
+                                        first.test == it.test &&
+                                        first.current == it.current &&
+                                        first.statusCode != it.statusCode
                                     }
 
                             if (second == null) null else first to second
@@ -126,19 +150,25 @@ fun Observable<InstrumentationEntry>.asTests(): Observable<InstrumentationTest> 
                         .filterNotNull()
                         .map { (first, second) ->
                             InstrumentationTest(
+                                    index = first.current,
+                                    total = first.numTests,
                                     className = first.clazz,
                                     testName = first.test,
                                     status = when (second.statusCode) {
                                         StatusCode.Ok -> Passed
-                                        StatusCode.Ignored -> Ignored
-                                        StatusCode.Failure, StatusCode.AssumptionFailure -> Failed(stacktrace = second.stack)
-                                        StatusCode.Start -> throw IllegalStateException("Unexpected status code [${second.statusCode}] in second entry, please report that to Composer maintainers ($first, $second)")
+                                        StatusCode.Ignored  -> Ignored()
+                                        StatusCode.AssumptionFailure -> Ignored(stacktrace = second.stack)
+                                        StatusCode.Failure -> Failed(stacktrace = second.stack)
+                                        StatusCode.Start -> throw IllegalStateException(
+                                                "Unexpected status code [Start] in second entry, " +
+                                                "please report that to Composer maintainers ($first, $second)"
+                                        )
                                     },
                                     durationNanos = second.timestampNanos - first.timestampNanos
                             )
                         }
 
-                result(
+                Result(
                         entries = entries.filter { entry -> tests.firstOrNull { it.className == entry.clazz && it.testName == entry.test } == null },
                         tests = tests,
                         totalTestsCount = previousResult.totalTestsCount + tests.size

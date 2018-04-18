@@ -36,7 +36,7 @@ export default class Suite extends Component {
     const data = window.suite;
     return (
       <div className="content margin-top-20">
-        <div className="title-common"><a href={ paths.fromSuiteToIndex }>Suits list</a>/ Suite {data.id}</div>
+        <div className="title-common"><a href={ paths.fromSuiteToIndex }>Suites list</a>/ Suite {data.id}</div>
 
         <SearchBar setSearchResults={ (results) => this.getSearchResults(results) } />
 
@@ -58,6 +58,8 @@ export default class Suite extends Component {
                   <div className="margin-bottom-5">
                     <span className="label info"
                           style={ { background: this.state.colors[test.deviceId] } }>{ test.deviceId }</span>
+                    <span className="label info"
+                          style={ { background: this.state.colors[test.deviceId] } }>{ test.deviceModel }</span>
                   </div>
                   <div className="margin-bottom-5">
                     <span className="label big">{ convertTime(test.duration_millis) }</span>
