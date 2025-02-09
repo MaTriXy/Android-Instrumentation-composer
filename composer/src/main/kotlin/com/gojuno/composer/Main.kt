@@ -111,28 +111,47 @@ private fun runAllTests(args: Args, testPackage: TestPackage.Valid, testRunner: 
                     val installTimeout = Pair(args.installTimeoutSeconds, TimeUnit.SECONDS)
                     val installAppApk = device.installApk(pathToApk = args.appApkPath, timeout = installTimeout)
                     val installTestApk = device.installApk(pathToApk = args.testApkPath, timeout = installTimeout)
+                    val installApks = mutableListOf(installAppApk, installTestApk)
+                    installApks.addAll(args.extraApks.map {
+                      device.installApk(pathToApk = it, timeout = installTimeout)
+                    })
 
                     Observable
-                            .concat(installAppApk, installTestApk)
+                            .concat(installApks)
                             // Work with each device in parallel, but install apks sequentially on a device.
                             .subscribeOn(Schedulers.io())
                             .toList()
                             .flatMap {
+                                val targetInstrumentation: List<Pair<String, String>>
+                                val testPackageName: String
+                                val testRunnerClass: String
+
+                                if (args.runWithOrchestrator) {
+                                    targetInstrumentation = listOf("targetInstrumentation" to "${testPackage.value}/${testRunner.value}")
+                                    testPackageName = "androidx.test.orchestrator"
+                                    testRunnerClass = "androidx.test.orchestrator.AndroidTestOrchestrator"
+                                } else {
+                                    targetInstrumentation = emptyList()
+                                    testPackageName = testPackage.value
+                                    testRunnerClass = testRunner.value
+                                }
+
                                 val instrumentationArguments =
                                         buildShardArguments(
                                                 shardingOn = args.shard,
                                                 shardIndex = index,
                                                 devices = connectedAdbDevices.size
-                                        ) + args.instrumentationArguments.pairArguments()
+                                        ) + args.instrumentationArguments.pairArguments() + targetInstrumentation
 
                                 device
                                         .runTests(
-                                                testPackageName = testPackage.value,
-                                                testRunnerClass = testRunner.value,
+                                                testPackageName = testPackageName,
+                                                testRunnerClass = testRunnerClass,
                                                 instrumentationArguments = instrumentationArguments.formatInstrumentationArguments(),
                                                 outputDir = File(args.outputDirectory),
                                                 verboseOutput = args.verboseOutput,
-                                                keepOutput = args.keepOutputOnExit
+                                                keepOutput = args.keepOutputOnExit,
+                                                useTestServices = args.runWithOrchestrator
                                         )
                                         .flatMap { adbDeviceTestRun ->
                                             writeJunit4Report(

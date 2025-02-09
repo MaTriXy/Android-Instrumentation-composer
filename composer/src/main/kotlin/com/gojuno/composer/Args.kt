@@ -106,7 +106,25 @@ data class Args(
                 description = "Either `true` or `false` to enable/disable error on empty test suite. True by default.",
                 order = 11
         )
-        var failIfNoTests: Boolean = true
+        var failIfNoTests: Boolean = true,
+
+        @Parameter(
+                names = arrayOf("--with-orchestrator"),
+                required = false,
+                arity = 1,
+                description = "Either `true` or `false` to enable/disable running tests via AndroidX Test Orchestrator. False by default.",
+                order = 12
+        )
+        var runWithOrchestrator: Boolean = false,
+
+        @Parameter(
+            names = arrayOf("--extra-apks"),
+            required = false,
+            variableArity = true,
+            description = "Extra APKs you would usually put on androidTestUtil",
+            order = 13
+        )
+        var extraApks: List<String> = emptyList()
 )
 
 // No way to share array both for runtime and annotation without reflection.

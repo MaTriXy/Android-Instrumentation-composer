@@ -30,7 +30,9 @@ class ArgsSpec : Spek({
                     devices = emptyList(),
                     devicePattern = "",
                     installTimeoutSeconds = 120,
-                    failIfNoTests = true
+                    failIfNoTests = true,
+                    runWithOrchestrator = false,
+                    extraApks = emptyList()
             ))
         }
     }
@@ -193,4 +195,27 @@ class ArgsSpec : Spek({
             }
         }
     }
+
+    context("parse args with --with-orchestrator") {
+
+        val args by memoized {
+            parseArgs(rawArgsWithOnlyRequiredFields + arrayOf("--with-orchestrator", "true"))
+        }
+
+        it("parses --with-orchestrator correctly") {
+            assertThat(args.runWithOrchestrator).isEqualTo(true)
+        }
+    }
+
+  context("parse args with passed --extra-apks") {
+
+    val args by memoized {
+      parseArgs(rawArgsWithOnlyRequiredFields + arrayOf("--extra-apks", "apk1.apk", "apk2.apk"))
+    }
+
+    it("parses correctly two extra apks") {
+      assertThat(args.extraApks).isEqualTo(listOf("apk1.apk", "apk2.apk"))
+    }
+  }
+
 })
